@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unternehmens-Kosten Dashboard</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"/>
+    <link rel="stylesheet" href="/css/styles.css">
+
+</head>
+<body>
+<div class="app-container">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                    >
+                        <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+                        <path d="M18 17V9" />
+                        <path d="M13 17V5" />
+                        <path d="M8 17v-3" />
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h2>CostTracker</h2>
+                    <p>Analytics Dashboard</p>
+                </div>
+            </div>
+            <button class="sidebar-toggle" id="sidebar-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="menu-item active " data-page="overview">
+                <a href="#"><i class="fas fa-tachometer-alt"></i> <span>Overview</span></a>
+            </li>
+            <li class="menu-item   " data-page="csv-import">
+            <a href="#"><i class="fa-solid fa-file-import"></i> <span>CSV-File Import</span></a>
+            </li>
+            <li class="menu-item" data-page="budget-tracking">
+                <a href="#"><i class="fas fa-wallet"></i> <span>Budget Tracking</span></a>
+            </li>
+            <li class="menu-item" data-page="trends">
+                <a href="#"><i class="fa-solid fa-arrow-trend-up"></i> <span>Trends</span></a>
+            </li>
+            <li class="menu-item" data-page="monthly-reports">
+                <a href="#"><i class="fas fa-calendar-alt"></i> <span>Monthly Reports</span></a>
+            </li>
+            <li class="menu-item" data-page="cost-centers">
+                <a href="#"><i class="fas fa-building"></i> <span>Cost Centers</span></a>
+            </li>
+            <li class="menu-item" data-page="departments">
+                <a href="#"><i class="fas fa-users"></i> <span>Departments</span></a>
+            </li>
+            <li class="menu-item" data-page="reports">
+                <a href="#"><i class="fas fa-file-alt"></i> <span>Reports</span></a>
+            </li>
+            <li class="menu-item" data-page="settings">
+                <a href="#"><i class="fas fa-cog"></i> <span>Settings</span></a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Overview Page -->
+        <div class="page active" id="overview-page">
+            <header class="header">
+                <div class="header-left">
+                    <h1>Kostenanalyse-Dashboard</h1>
+                    <p>
+                        Analyse und Überwachung von Unternehmenskosten abteilungsübergreifend und zeitraumspezifisch
+                    </p>
+                </div>
+                <div class="header-actions">
+
+                    <div class="company-selector">
+                        <label for="company-select">Unternehmen:</label>
+                        <select id="company-select" name="company">
+                            <th:block th:each="company : ${companies}">
+                                <option th:value="${company}" th:text="${company}"></option>
+                            </th:block>
+                        </select>
+                    </div>
+                    <div class="date-selector">
+                        <label for="year-select">Jahr:</label>
+                        <select id="year-select" name="jahr">
+                            <th:block th:each="jahr : ${jahre}">
+                                <option th:value="${jahr}" th:text="${jahr}"></option>
+                            </th:block>
+                        </select>
+                    </div>
+
+                    <script>
+                        $(document).ready(function() {
+                            $('#company-select').change(function() {
+                                const selectedCompany = $(this).val();
+
+                                $.ajax({
+                                    url: '/data-by-company',
+                                    type: 'GET',
+                                    data: { companyName: selectedCompany },
+                                    success: function(response) {
+                                        // Dispatch custom event with the data
+                                        const customEvent = new CustomEvent('companyDataLoaded', {
+                                            detail: {
+                                                data: response.companyData,
+                                                year: response.companyName,
+                                                message: response.message,
+                                                yearsOfCompany : response.yearsOfCompany
+                                            }
+                                        });
+                                        document.dispatchEvent(customEvent);
+                                    },
+                                    error: function(xhr, status, error) {
+                                        console.error('Error:', error);
+                                     //   $('#result-container').html('<p>Error loading data</p>');
+                                    }
+                                });
+                            });
+                        });
+                    </script>
+                    <script th:inline="javascript">
+                        const firstCompanyData = JSON.parse(/*[[${firstCompanyData}]]*/  '');
+                        //console.log(firstCompanyData);
+                    </script>
+
+                    <button class="export-btn btn-primary" id="export-pdf">
+                        <i class="fas fa-file-pdf"></i> PDF Export
+                    </button>
+                    <button class="export-btn btn-primary" id="export-excel">
+                        <i class="fas fa-file-excel"></i> Excel Export
+                    </button>
+                </div>
+            </header>
+
+            <div class="summary-cards">
+                <div class="card metric-card"> <!-- metric-card -->
+                    <div class="metric-content">
+                        <h3>Gesamtkosten</h3>
+                        <div class="amount" id="total-costs">€0</div>
+                        <div class="change positive" id="total-change">+0%</div>
+                    </div>
+                    <div class="metric-icon yellow"> <i class="fas fa-cog"></i> </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-content">
+                        <h3>Produktionskosten</h3>
+                        <div class="amount" id="operating-costs">€0</div>
+                        <div class="change" id="operating-change">+0%</div>
+                    </div>
+                    <div class="metric-icon blue"> <i class="fas fa-cog"></i> </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-content">
+                        <h3>Personalkosten</h3>
+                        <div class="amount" id="personnel-costs">€0</div>
+                        <div class="change" id="personnel-change">+0%</div>
+                    </div>
+                    <div class="metric-icon green"><i class="fas fa-cog"></i></div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-content">
+                        <h3>Marketing</h3>
+                        <div class="amount" id="marketing-costs">€0</div>
+                        <div class="change" id="marketing-change">+0%</div>
+                    </div>
+                    <div class="metric-icon red">  <i class="fas fa-cog"></i> </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h2>Monatliche Kostenentwicklung</h2>
+                    <div id="monthly-trend-chart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h2>Kostenverteilung</h2>
+                    <div id="cost-breakdown-chart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h2>Quartalsvergleich</h2>
+                    <div id="quarterly-comparison-chart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h2>Abteilungskosten</h2>
+                    <div id="department-costs-chart"></div>
+                </div>
+            </div>
+
+            <div class="data-table-container">
+                <h2>Detaillierte Kostenaufstellung</h2>
+                <table id="cost-table">
+                    <thead>
+                    <tr>
+                        <th>Monat</th>
+                        <th>Produktionskosten</th>
+                        <th>Personalkosten</th>
+                        <th>IT & Software</th>
+                        <th>Marketing</th>
+                        <th>Logistik</th>
+                        <th>Sonstiges</th>
+                        <th>Gesamt</th>
+                    </tr>
+                    </thead>
+                    <tbody id="cost-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- CSV-File Import Page -->
+        <div class="page " id="csv-import-page">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fa-solid fa-file-import"></i>CSV Data Import</h1>
+                    <p>Upload and import cost data from CSV files</p>
+                </div>
+            </div>
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Upload Card -->
+                <div class="card upload-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-upload"></i> Upload CSV File</h3>
+                    </div>
+                    <div class="card-content">
+                        <form th:action="@{/upload-csv}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                            <div class="upload-zone" id="uploadZone">
+                                <input type="file" name="csvFile" id="csvFile" class="file-input" accept=".csv" required multiple>
+
+                                <div class="upload-icon">
+                                    <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                    </svg>
+                                </div>
+                                <div class="upload-text">Drop your CSV file here</div>
+                                <div class="upload-subtext">or click to browse files</div>
+
+                                <button type="button" class="btn btn-outline" onclick="document.getElementById('csvFile').click()">
+                                    Choose File
+                                </button>
+                            </div>
+
+                            <!-- File Information -->
+                            <div class="file-info" id="fileInfo">
+                                <div class="file-details">
+                                    <div class="file-name">
+                                        <strong id="fileName">No file selected</strong>
+                                        <span id="fileSize" class="file-size"></span>
+                                    </div>
+                                    <div class="file-status" id="fileStatus">Ready to upload</div>
+                                </div>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="progressFill"></div>
+                                    </div>
+                                    <span class="progress-text" id="progressText">0%</span>
+                                </div>
+                            </div>
+
+                            <!-- Messages -->
+                            <div class="message error-message" id="errorMessage"  if="${error}"  text="${error}">
+                            </div>
+
+                            <div class="message success-message" id="successMessage"  if="${success}"  text="${success}">
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                                    <svg class="btn-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                    </svg>
+                                    Upload CSV
+                                </button>
+                                <button type="button" class="btn btn-outline" onclick="resetForm()">
+                                    Reset
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- Requirements Card -->
+                <div class="card requirements-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-clipboard-check"></i> File Requirements</h3>
+                    </div>
+                    <div class="card-content">
+                        <ul class="requirements-list">
+                            <li>File must be in CSV format (.csv)</li>
+                            <li>Maximum file size: 10MB</li>
+                            <li>First row should contain column headers</li>
+                            <li>Use comma (,) as delimiter</li>
+                            <li>Required columns: Date, Department, Budget, ...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Uploads Card -->
+            <div class="card recent-uploads-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-square-poll-vertical"></i> Recent Uploads</h3>
+                    <button class="btn btn-text">View All</button>
+                </div>
+                <div class="card-content">
+                    <div class="upload-history">
+                        <div class="upload-item">
+                            <div class="upload-info">
+                                <div class="upload-name">automobil_finanzdaten.csv</div>
+                                <div class="upload-meta">Uploaded 1 month ago • 1200 records</div>
+                            </div>
+                            <div class="upload-status success">✓ Processed</div>
+                        </div>
+                        <!--
+                        <div class="upload-item">
+                            <div class="upload-info">
+                                <div class="upload-name">marketing-expenses-q4.csv</div>
+                                <div class="upload-meta">Uploaded yesterday • 856 records</div>
+                            </div>
+                            <div class="upload-status success">✓ Processed</div>
+                        </div>
+                        <div class="upload-item">
+                            <div class="upload-info">
+                                <div class="upload-name">hr-costs-november.csv</div>
+                                <div class="upload-meta">Uploaded 3 days ago • 2,145 records</div>
+                            </div>
+                            <div class="upload-status success">✓ Processed</div>
+                        </div>
+                        -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Budget Tracking Page -->
+        <div class="page" id="budget-tracking-page">
+            <div class="header">
+                <div class="header-left">
+                     <h1><i class="fas fa-wallet"></i>Budget Tracking</h1>
+                    <p>Upload and import cost data from CSV files</p>
+                </div>
+            </div>
+            <div class="budget-content">
+                <div class="budget-cards">
+                    <div class="card budget-cards">
+                        <h3>Budget Ausschöpfung</h3>
+                        <div class="progress-bar">
+                            <div id="budget-progress-bar" class="progress" style="width: 50%"></div>
+                        </div>
+                        <div id="usedBudget" class="budget-info">0% von €0</div>
+                    </div>
+                    <div class="card budget-cards">
+                        <h3>Verbleibendes Budget</h3>
+                        <div id="rest-budget" class="amount">€0</div>
+                        <div id="restBudget-change" class="change negative">0% im Vergleich zum Vormonat</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h2>Budget vs. Ist-Kosten</h2>
+                    <div id="budget-vs-actual-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trends Page -->
+        <div class="page" id="trends-page">
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fa-solid fa-arrow-trend-up"></i> Trends</h1>
+                    <p>EntwicklungsMuster im Zeitverlauf erkennen</p>
+                </div>
+            </div>
+            <div class="trends-content">
+                <div class="chart-container">
+                    <h2>Kosten und Erlöse im Überblick</h2>
+                    <div id="kosten-erloese-chart"></div>
+                </div>
+                <div class="chart-container">
+                    <h2>12-Monats-Trend</h2>
+                    <div id="twelve-month-trend-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Reports Page -->
+        <div class="page" id="monthly-reports-page">
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fas fa-calendar-alt"></i> Monatsberichte</h1>
+                    <p>Monatsbezogene Berichte einfach erstellen und nutzen</p>
+                </div>
+            </div>
+            <div class="reports-content">
+                <h2>Monatszusammenfassung</h2>
+                <div class="report-selector">
+                    <label for="month-select">Monat:</label>
+                    <select id="month-select">
+                        <option value="1">Januar</option>
+                        <option value="2">Februar</option>
+                        <option value="3">März</option>
+                        <option value="4">April</option>
+                        <option value="5">Mai</option>
+                        <option value="6">Juni</option>
+                        <option value="7">Juli</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Dezember</option>
+                    </select>
+                </div>
+                <div class="monthly-summary">
+
+                    <div id="monthly-report-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Centers Page -->
+        <div class="page" id="cost-centers-page">
+            <!--<header class="page-header">
+                <h1><i class="fas fa-building"></i> Kostenstellen</h1>
+            </header>-->
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fas fa-building"></i> Kostenstellen</h1>
+                    <p>Ausgaben nach Kostenstellen gezielt analysieren und verwalten</p>
+                </div>
+            </div>
+            <div class="cost-centers-content">
+                <div class="chart-container">
+                    <h2>Kostenstellen-Übersicht</h2>
+                    <div id="cost-centers-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Departments Page -->
+        <div class="page" id="departments-page">
+            <!--<header class="page-header">
+                <h1><i class="fas fa-users"></i> Abteilungen</h1>
+            </header>-->
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fas fa-users"></i> Abteilungen</h1>
+                    <p>Kosten einzelnen Abteilungen zuordnen und analysieren</p>
+                </div>
+            </div>
+            <div class="departments-content">
+                <div class="chart-container">
+                    <h2>Abteilungskosten im Detail</h2>
+                    <div id="departments-detail-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Page -->
+        <div class="page" id="reports-page">
+            <!--<header class="page-header">
+                <h1><i class="fas fa-file-alt"></i> Berichte</h1>
+            </header>-->
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fas fa-file-alt"></i> Berichte</h1>
+                    <p>Berichte zur Entscheidungsfindung generieren</p>
+                </div>
+            </div>
+            <div class="reports-list">
+                <div class="report-item">
+                    <h3>Jahresbericht 2024</h3>
+                    <p>Vollständiger Kostenbericht für das Jahr 2024</p>
+                    <button class="btn-primary">Generieren</button>
+                </div>
+                <div class="report-item">
+                    <h3>Quartalsvergleich Q4</h3>
+                    <p>Vergleich der Quartalskosten</p>
+                    <button class="btn-primary">Generieren</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div class="page" id="settings-page">
+            <!--<header class="page-header">
+                <h1><i class="fas fa-cog"></i> Einstellungen</h1>
+            </header>-->
+            <div class="header">
+                <div class="header-left">
+                    <h1><i class="fas fa-cog"></i>Einstellungen</h1>
+                    <p>Einstellungen individuell anpassen und verwalten</p>
+                </div>
+            </div>
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h3>Allgemeine Einstellungen</h3>
+                    <div class="setting-item">
+                        <label>Währung:</label>
+                        <select>
+                            <option value="EUR">Euro (€)</option>
+                            <option value="USD">US Dollar ($)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Sprache:</label>
+                        <select>
+                            <option value="de">Deutsch</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/js/script.js"></script>
+<script  src="/js/csv-upload2.js"></script>
+
+</body>
+</html>
