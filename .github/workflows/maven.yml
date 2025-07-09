@@ -31,7 +31,7 @@ jobs:
      # run: mvn -B package --file pom.xml
 
     - name: Run tests
-      run: mvn clean test
+      run: timeout 30 mvn clean test
       
     - name: Build application (don't run)
       run: mvn clean package -DskipTests
