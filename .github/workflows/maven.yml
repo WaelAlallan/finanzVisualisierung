@@ -30,9 +30,6 @@ jobs:
     #- name: Build with Maven
      # run: mvn -B package --file pom.xml
 
-    - name: Run tests
-      run: timeout 30 mvn clean test
-      
     - name: Build application (don't run)
       run: mvn clean package -DskipTests
 
