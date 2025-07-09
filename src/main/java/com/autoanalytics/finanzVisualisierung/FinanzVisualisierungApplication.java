@@ -73,7 +73,7 @@ public class FinanzVisualisierungApplication implements CommandLineRunner {
 		);
 		System.out.println("Verzeichnis 'uploads' wird auf hochgeladene Dateien überwacht");
 		WatchKey key;
-		
+		/*
 		while ((key = watchService.take()) != null) {
 
 			for (WatchEvent<?> event : key.pollEvents()) {
@@ -88,7 +88,7 @@ public class FinanzVisualisierungApplication implements CommandLineRunner {
 			}
 			key.reset();
 		}
-		
+		*/
 	}
 
 
